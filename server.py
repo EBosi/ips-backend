@@ -37,11 +37,11 @@ class Handler(BaseHTTPRequestHandler):
         return
 
     def _handle_scopus_ips(self, query_string: str) -> None:
-        params = parse_qs(query_string)
+        params = parse_qs(query_string, keep_blank_values=True)
         try:
             author_id = _first(params, "author_id")
             researcher_name = _first(params, "researcher_name")
-            ssd = _first(params, "ssd")
+            ssd = _first(params, "ssd", "")
             start_year = int(_first(params, "start_year", "2022"))
             end_year = int(_first(params, "end_year", "2026"))
             ips_rows, _ = build_scopus_tables(author_id, researcher_name, ssd, start_year, end_year)
@@ -51,11 +51,11 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
 
     def _handle_scopus_detailed(self, query_string: str) -> None:
-        params = parse_qs(query_string)
+        params = parse_qs(query_string, keep_blank_values=True)
         try:
             author_id = _first(params, "author_id")
             researcher_name = _first(params, "researcher_name")
-            ssd = _first(params, "ssd")
+            ssd = _first(params, "ssd", "")
             start_year = int(_first(params, "start_year", "2022"))
             end_year = int(_first(params, "end_year", "2026"))
             _, detailed_rows = build_scopus_tables(author_id, researcher_name, ssd, start_year, end_year)
