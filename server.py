@@ -97,8 +97,8 @@ def _first(params: dict[str, list[str]], key: str, default: str | None = None) -
 
 
 def main() -> int:
-    host = os.getenv("IPS_API_HOST", "127.0.0.1")
-    port = int(os.getenv("IPS_API_PORT", "8000"))
+    host = os.getenv("IPS_API_HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", os.getenv("IPS_API_PORT", "8000")))
     server = ThreadingHTTPServer((host, port), Handler)
     print(f"http://{host}:{port}")
     server.serve_forever()

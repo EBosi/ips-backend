@@ -91,3 +91,29 @@ curl "http://127.0.0.1:8000/api/scopus/author-search?query=authlast%28Bosi%29%20
 - keep provider API keys only on the backend
 - enable CORS for the frontend origin
 - quartile/category enrichment may still need refinement depending on provider coverage
+
+## Render deploy
+
+This repository is ready for a simple Render web service deploy.
+
+Recommended settings:
+
+- service type: `Web Service`
+- runtime: `Python`
+- build command: leave empty
+- start command: `python3 server.py`
+
+Environment variables to set in Render:
+
+- `SCOPUS_API_KEY`
+- `SCOPUS_INSTTOKEN` if your Scopus access needs it
+- `WOS_API_KEY` only if you actually use Web of Science endpoints
+- `WOS_API_BASE_URL` only if you need a non-default base URL
+
+Render will inject `PORT` automatically. The server is configured to listen on it.
+
+After deploy, test:
+
+```bash
+curl "https://your-service.onrender.com/health"
+```

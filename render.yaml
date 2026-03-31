@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: ips-backend
+    runtime: python
+    plan: free
+    buildCommand: ""
+    startCommand: python3 server.py
+    envVars:
+      - key: SCOPUS_API_KEY
+        sync: false
+      - key: SCOPUS_INSTTOKEN
+        sync: false
+      - key: WOS_API_KEY
+        sync: false
+      - key: WOS_API_BASE_URL
+        sync: false
