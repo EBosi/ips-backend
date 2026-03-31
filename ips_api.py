@@ -38,6 +38,11 @@ def _print(data: Any) -> None:
     print(json.dumps(_redact(data), indent=2, ensure_ascii=False, sort_keys=True))
 
 
+def _is_authorization_error(exc: Exception) -> bool:
+    message = str(exc)
+    return "AUTHORIZATION_ERROR" in message or "HTTP 401" in message or "HTTP 403" in message
+
+
 def _redact(value: Any) -> Any:
     secret_values = [item for item in (os.getenv("SCOPUS_API_KEY"), os.getenv("WOS_API_KEY")) if item]
     if isinstance(value, dict):
@@ -287,8 +292,16 @@ class ScopusClient:
         query = f"AU-ID({author_id}) AND PUBYEAR > {start_year - 1} AND PUBYEAR < {end_year + 1}"
         start = 0
         publications: list[Publication] = []
+        view = "COMPLETE"
         while True:
-            payload = self.search_publications_page(query=query, count=count, start=start, view="COMPLETE")
+            try:
+                payload = self.search_publications_page(query=query, count=count, start=start, view=view)
+            except ApiError as exc:
+                if view == "COMPLETE" and _is_authorization_error(exc):
+                    view = "STANDARD"
+                    payload = self.search_publications_page(query=query, count=count, start=start, view=view)
+                else:
+                    raise
             batch = self.normalize_publications(payload)
             publications.extend(batch)
             total_str = payload.get("search-results", {}).get("opensearch:totalResults", "0")
@@ -480,8 +493,14 @@ def build_scopus_tables(author_id: str, researcher_name: str, ssd: str, start_ye
         metrics: list[JournalMetric] = []
         if metric_key:
             if metric_key not in metrics_cache:
-                payload = client.serial_title(metric_key.replace("-", ""))
-                metrics_cache[metric_key] = client.normalize_serial_title(payload)
+                try:
+                    payload = client.serial_title(metric_key.replace("-", ""))
+                    metrics_cache[metric_key] = client.normalize_serial_title(payload)
+                except ApiError as exc:
+                    if _is_authorization_error(exc):
+                        metrics_cache[metric_key] = []
+                    else:
+                        raise
             metrics = metrics_cache[metric_key]
 
         publication_metrics = [item for item in metrics if item.year == publication.year] or metrics

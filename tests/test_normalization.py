@@ -2,7 +2,7 @@ import importlib.util
 from pathlib import Path
 
 
-MODULE_PATH = Path("/home/bosi/ips_api_prototype/ips_api.py")
+MODULE_PATH = Path("/home/bosi/ips-backend/ips_api.py")
 spec = importlib.util.spec_from_file_location("ips_api", MODULE_PATH)
 ips_api = importlib.util.module_from_spec(spec)
 assert spec.loader is not None
@@ -94,3 +94,9 @@ def test_citation_author_initials_are_not_double_dotted():
     assert "Bosi, E.." not in citation
     assert "Marchetti, P.." not in citation
     assert "Bosi, E." in citation
+
+
+def test_is_authorization_error_detects_scopus_auth_failure():
+    exc = ips_api.ApiError("HTTP 401 ... AUTHORIZATION_ERROR ...")
+
+    assert ips_api._is_authorization_error(exc) is True
