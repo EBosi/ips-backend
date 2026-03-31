@@ -2,6 +2,7 @@
 
 import json
 import os
+import sys
 from dataclasses import asdict
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -12,6 +13,11 @@ from ips_api import ApiError, ScopusClient, _ips_row_to_csv_dict, build_scopus_t
 
 def _json_bytes(payload: object) -> bytes:
     return json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
+
+
+def _log_event(event: str, **fields: object) -> None:
+    payload = {"event": event, **fields}
+    print(json.dumps(payload, ensure_ascii=False), file=sys.stderr, flush=True)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -65,16 +71,39 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
 
     def _handle_scopus_author_search(self, query_string: str) -> None:
-        params = parse_qs(query_string)
+        params = parse_qs(query_string, keep_blank_values=True)
         try:
             query = _first(params, "query")
             count = int(_first(params, "count", "10"))
             start = int(_first(params, "start", "0"))
+            _log_event(
+                "scopus_author_search_start",
+                query=query,
+                count=count,
+                start=start,
+                has_insttoken=bool(os.getenv("SCOPUS_INSTTOKEN")),
+            )
             client = ScopusClient(os.environ["SCOPUS_API_KEY"], os.getenv("SCOPUS_INSTTOKEN"))
             payload = client.author_search(query=query, count=count, start=start)
             normalized = [asdict(item) for item in client.normalize_author_search(payload)]
+            _log_event(
+                "scopus_author_search_success",
+                query=query,
+                count=count,
+                start=start,
+                results=len(normalized),
+            )
             self._send_json(normalized)
         except (ApiError, ValueError, KeyError) as exc:
+            _log_event(
+                "scopus_author_search_error",
+                error_type=type(exc).__name__,
+                error=str(exc),
+                query=params.get("query", [""])[0],
+                count=params.get("count", [""])[0],
+                start=params.get("start", [""])[0],
+                has_insttoken=bool(os.getenv("SCOPUS_INSTTOKEN")),
+            )
             self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
 
     def _send_json(self, payload: object, status: HTTPStatus = HTTPStatus.OK) -> None:
